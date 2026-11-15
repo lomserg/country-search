@@ -2,6 +2,7 @@ import { debounce } from './utils/debounce.js';
 import { searchCountries } from './api/searchCountries.js';
 import { mapCountryResponse } from './api/mapCountryResponse.js';
 import type { Country } from './types/Country.js';
+import { createLatestRequest } from './utils/createLatestRequest.js';
 
 // Настройки приложения
 const DEBOUNCE_DELAY = 400;
@@ -58,7 +59,8 @@ app.append(header, form, status, retryButton, results);
 document.body.append(app);
 
 // Состояние приложения
-let activeController: AbortController | null = null;
+const latestRequest = createLatestRequest();
+
 let lastQuery = '';
 let currentCountries: Country[] = [];
 // Изменение сообщения
@@ -159,8 +161,10 @@ function renderCountries(countries: Country[]): void {
 }
 
 // Выполнение поиска
+
 async function performSearch(query: string): Promise<void> {
   if (!query) {
+    latestRequest.cancel();
     results.replaceChildren();
     setStatus('');
     retryButton.hidden = true;
@@ -168,57 +172,49 @@ async function performSearch(query: string): Promise<void> {
     return;
   }
 
-  const controller = new AbortController();
-  activeController = controller;
-
-  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT);
-  const combinedSignal = AbortSignal.any([controller.signal, timeoutSignal]);
-
   searchButton.disabled = true;
   retryButton.hidden = true;
   setStatus('Загрузка...');
   results.replaceChildren();
 
-  try {
-    const rawCountries = await searchCountries(query, combinedSignal);
+  await latestRequest.run(async (signal) => {
+    const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT);
+    const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
 
-    // Защита от отображения результата устаревшего запроса
-    if (controller.signal.aborted) {
-      return;
+    try {
+      const rawCountries = await searchCountries(query, combinedSignal);
+
+      if (signal.aborted) {
+        return;
+      }
+
+      const countries = rawCountries.map(mapCountryResponse);
+
+      renderCountries(countries);
+
+      if (countries.length === 0) {
+        setStatus('Страны не найдены.');
+      } else {
+        setStatus(`Найдено стран: ${countries.length}`);
+      }
+    } catch (error) {
+      if (signal.aborted) {
+        return;
+      }
+
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        setStatus('Превышено время ожидания ответа. Попробуйте ещё раз.', true);
+      } else {
+        setStatus('Не удалось выполнить поиск. Проверьте соединение.', true);
+      }
+
+      retryButton.hidden = false;
+    } finally {
+      if (!signal.aborted) {
+        searchButton.disabled = false;
+      }
     }
-
-    const countries = rawCountries.map(mapCountryResponse);
-
-    renderCountries(countries);
-
-    if (countries.length === 0) {
-      setStatus('Страны не найдены.');
-    } else {
-      setStatus(`Найдено стран: ${countries.length}`);
-    }
-  } catch (error) {
-    // Пользователь ввёл новый запрос — старую ошибку не показываем
-    if (controller.signal.aborted) {
-      return;
-    }
-
-    if (error instanceof Error && error.name === 'AbortError') {
-      return;
-    }
-
-    if (error instanceof Error && error.name === 'TimeoutError') {
-      setStatus('Превышено время ожидания ответа. Попробуйте ещё раз.', true);
-    } else {
-      setStatus('Не удалось выполнить поиск. Проверьте соединение.', true);
-    }
-
-    retryButton.hidden = false;
-  } finally {
-    if (activeController === controller) {
-      searchButton.disabled = false;
-      activeController = null;
-    }
-  }
+  });
 }
 
 // Debounce для поиска
@@ -228,7 +224,8 @@ const debouncedSearch = debounce((query: string) => {
 
 // Немедленная отмена предыдущего запроса при изменении поля
 input.addEventListener('input', () => {
-  activeController?.abort();
+  latestRequest.cancel();
+  searchButton.disabled = false;
 
   const query = input.value.trim();
   lastQuery = query;
@@ -236,6 +233,8 @@ input.addEventListener('input', () => {
   retryButton.hidden = true;
 
   if (!query) {
+    results.replaceChildren();
+    setStatus('');
     debouncedSearch('');
     return;
   }
@@ -243,19 +242,18 @@ input.addEventListener('input', () => {
   setStatus('Ожидание ввода...');
   debouncedSearch(query);
 });
-
 // Поиск по нажатию Enter или кнопки
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  activeController?.abort();
+  latestRequest.cancel();
+  searchButton.disabled = false;
 
   const query = input.value.trim();
   lastQuery = query;
 
   void performSearch(query);
 });
-
 // Повтор последнего запроса
 retryButton.addEventListener('click', () => {
   if (lastQuery) {
