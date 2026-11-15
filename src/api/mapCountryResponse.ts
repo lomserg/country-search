@@ -1,15 +1,5 @@
-type RawCountry = {
-  name: string;
-  flag: string;
-  capital: string;
-  region: string;
-  population: number;
-  languages: {
-    name: string;
-  }[];
-};
-
-export function mapCountryResponse(raw: RawCountry) {
+import type { Country, RawCountry } from '../types/Country.js';
+export function mapCountryResponse(raw: RawCountry): Country {
   return {
     name: raw.name,
     flag: raw.flag,
@@ -18,5 +8,4 @@ export function mapCountryResponse(raw: RawCountry) {
     population: raw.population,
     languages: raw.languages.map((language) => language.name),
   };
-  // TODO: implement
 }

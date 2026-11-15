@@ -1,9 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { searchCountries } from '../../src/api/searchCountries';
 import { HttpError } from '../../src/api/HttpError';
+
 describe('searchCountries', () => {
   it('should fetch countries by query', async () => {
-    const mockCountries = [{ name: { common: 'Canada' } }];
+    const mockCountries = [
+      {
+        name: 'Canada',
+        flag: '🇨🇦',
+        capital: 'Ottawa',
+        region: 'Americas',
+        population: 38005238,
+        languages: [{ name: 'English' }, { name: 'French' }],
+      },
+    ];
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -23,7 +33,16 @@ describe('searchCountries', () => {
     vi.unstubAllGlobals();
   });
   it('should return countries data', async () => {
-    const mockCountries = [{ name: { common: 'Canada' } }];
+    const mockCountries = [
+      {
+        name: 'Canada',
+        flag: '🇨🇦',
+        capital: 'Ottawa',
+        region: 'Americas',
+        population: 38005238,
+        languages: [{ name: 'English' }, { name: 'French' }],
+      },
+    ];
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
