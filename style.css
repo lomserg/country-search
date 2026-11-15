@@ -152,3 +152,33 @@ input {
     width: 100%;
   }
 }
+.country-card[role='button'] {
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.country-card[role='button']:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgb(16 24 40 / 10%);
+}
+
+.country-card[role='button']:focus-visible {
+  outline: 3px solid #4776e6;
+  outline-offset: 3px;
+}
+
+.country-detail {
+  cursor: default;
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.country-detail:hover {
+  transform: none;
+}
+
+.country-detail h2 {
+  font-size: 28px;
+}

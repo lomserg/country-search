@@ -60,7 +60,7 @@ document.body.append(app);
 // Состояние приложения
 let activeController: AbortController | null = null;
 let lastQuery = '';
-
+let currentCountries: Country[] = [];
 // Изменение сообщения
 function setStatus(message: string, isError = false): void {
   status.textContent = message;
@@ -71,6 +71,9 @@ function setStatus(message: string, isError = false): void {
 function createCountryCard(country: Country): HTMLElement {
   const card = document.createElement('article');
   card.className = 'country-card';
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', `Подробнее о стране ${country.name}`);
 
   const flag = document.createElement('div');
   flag.className = 'country-flag';
@@ -87,14 +90,52 @@ function createCountryCard(country: Country): HTMLElement {
   region.className = 'country-info';
   region.textContent = `Регион: ${country.region}`;
 
-  const detailsButton = document.createElement('button');
-  detailsButton.className = 'details-button';
-  detailsButton.type = 'button';
-  detailsButton.textContent = 'Подробнее';
+  card.append(flag, name, capital, region);
 
-  const details = document.createElement('div');
-  details.className = 'country-details';
-  details.hidden = true;
+  card.addEventListener('click', () => {
+    renderCountryDetails(country);
+  });
+  // Отображение подробной информации о стране
+
+  card.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      renderCountryDetails(country);
+    }
+  });
+
+  return card;
+}
+
+function renderCountryDetails(country: Country): void {
+  results.replaceChildren();
+
+  const backButton = document.createElement('button');
+  backButton.className = 'details-button';
+  backButton.type = 'button';
+  backButton.textContent = '← Назад к результатам';
+
+  backButton.addEventListener('click', () => {
+    renderCountries(currentCountries);
+  });
+
+  const details = document.createElement('article');
+  details.className = 'country-card country-detail';
+
+  const flag = document.createElement('div');
+  flag.className = 'country-flag';
+  flag.textContent = country.flag;
+
+  const name = document.createElement('h2');
+  name.textContent = country.name;
+
+  const capital = document.createElement('p');
+  capital.className = 'country-info';
+  capital.textContent = `Столица: ${country.capital}`;
+
+  const region = document.createElement('p');
+  region.className = 'country-info';
+  region.textContent = `Регион: ${country.region}`;
 
   const population = document.createElement('p');
   population.className = 'country-info';
@@ -104,20 +145,12 @@ function createCountryCard(country: Country): HTMLElement {
   languages.className = 'country-info';
   languages.textContent = `Языки: ${country.languages.join(', ')}`;
 
-  details.append(population, languages);
-
-  detailsButton.addEventListener('click', () => {
-    details.hidden = !details.hidden;
-    detailsButton.textContent = details.hidden ? 'Подробнее' : 'Скрыть';
-  });
-
-  card.append(flag, name, capital, region, detailsButton, details);
-
-  return card;
+  details.append(flag, name, capital, region, population, languages);
+  results.append(backButton, details);
 }
-
 // Отображение списка стран
 function renderCountries(countries: Country[]): void {
+  currentCountries = countries;
   results.replaceChildren();
 
   for (const country of countries) {
